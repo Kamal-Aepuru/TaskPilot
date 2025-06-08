@@ -3,6 +3,8 @@ import axios from "axios";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTasks } from "../api/useTasks";
 import { useCategories } from "../api/useCategories";
+import { useDeleteTask } from "../api/useDelete";
+import { useUpdateTask } from "../api/useUpdateTask";
 import type { Task } from "../types/task";
 
 export default function TaskList() {
@@ -10,7 +12,10 @@ export default function TaskList() {
 
   const { data: tasks, isLoading, isError } = useTasks();
   const { data: categories } = useCategories();
+  const deleteTaskMutation = useDeleteTask();
+  const updateTaskMutation = useUpdateTask();
 
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -23,16 +28,16 @@ export default function TaskList() {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    const { name, value, type } = e.target;
-    const formattedValue =
-      type === "datetime-local" ? new Date(value).toISOString() : value;
-    setForm((prev) => ({ ...prev, [name]: formattedValue }));
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const addTaskMutation = useMutation({
     mutationFn: async () => {
       const payload = {
         ...form,
+        startDateTime: new Date(form.startDateTime),
+        endDateTime: new Date(form.endDateTime),
         category:
           form.category && form.category.length === 24 ? form.category : undefined,
       };
@@ -41,50 +46,80 @@ export default function TaskList() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      setForm({
-        name: "",
-        description: "",
-        startDateTime: "",
-        endDateTime: "",
-        category: "",
-        createdBy: "",
-      });
+      resetForm();
     },
     onError: (error) => {
       console.error("Error creating task:", error);
     },
   });
 
-  const handleAddTask = (e: React.FormEvent) => {
+  const handleAddOrUpdateTask = (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!form.name || !form.startDateTime || !form.endDateTime || !form.createdBy) {
       alert("Please fill all required fields.");
       return;
     }
-    addTaskMutation.mutate();
+
+    if (editingTaskId) {
+      updateTaskMutation.mutate({ id: editingTaskId, updatedTask: form }, {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["tasks"] });
+          resetForm();
+        },
+      });
+    } else {
+      addTaskMutation.mutate();
+    }
+  };
+
+  const handleEdit = (task: Task) => {
+    setForm({
+      name: task.name,
+      description: task.description || "",
+      startDateTime: new Date(task.startDateTime).toISOString().slice(0, 16),
+      endDateTime: new Date(task.endDateTime).toISOString().slice(0, 16),
+      category: task.category || "",
+      createdBy: task.createdBy,
+    });
+    setEditingTaskId(task._id);
+  };
+
+  const resetForm = () => {
+    setForm({
+      name: "",
+      description: "",
+      startDateTime: "",
+      endDateTime: "",
+      category: "",
+      createdBy: "",
+    });
+    setEditingTaskId(null);
   };
 
   return (
     <div>
-      <h2>Create New Task</h2>
-      <form onSubmit={handleAddTask}>
+      <h2>{editingTaskId ? "Edit Task" : "Create New Task"}</h2>
+      <form onSubmit={handleAddOrUpdateTask}>
         <input name="name" placeholder="Name" value={form.name} onChange={handleChange} />
         <input name="description" placeholder="Description" value={form.description} onChange={handleChange} />
         <input name="startDateTime" type="datetime-local" value={form.startDateTime} onChange={handleChange} />
         <input name="endDateTime" type="datetime-local" value={form.endDateTime} onChange={handleChange} />
         <input name="createdBy" placeholder="Created By" value={form.createdBy} onChange={handleChange} />
-
         <select name="category" value={form.category} onChange={handleChange}>
           <option value="">Select Category</option>
           {categories?.map((cat: any) => (
-            <option key={cat._id} value={cat._id}>
-              {cat.name}
-            </option>
+            <option key={cat._id} value={cat._id}>{cat.name}</option>
           ))}
         </select>
-
-        <button type="submit" disabled={addTaskMutation.isPending}>
-          {addTaskMutation.isPending ? "Adding..." : "Add Task"}
+        <button type="submit">
+          {editingTaskId
+            ? updateTaskMutation.isPending
+              ? "Updating..."
+              : "Update Task"
+            : addTaskMutation.isPending
+            ? "Adding..."
+            : "Add Task"}
         </button>
       </form>
 
@@ -98,7 +133,14 @@ export default function TaskList() {
             <strong>{task.name}</strong> - {task.description || "No description"}<br />
             Start: {new Date(task.startDateTime).toLocaleString()}<br />
             End: {new Date(task.endDateTime).toLocaleString()}<br />
-            Created By: {task.createdBy}
+            Created By: {task.createdBy}<br />
+            <button onClick={() => handleEdit(task)}>✏️ Edit</button>
+            <button
+              onClick={() => deleteTaskMutation.mutate(task._id)}
+              disabled={deleteTaskMutation.isPending}
+            >
+              🗑️ Delete
+            </button>
             <hr />
           </li>
         ))}

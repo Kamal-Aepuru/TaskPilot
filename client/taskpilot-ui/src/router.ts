@@ -1,15 +1,20 @@
-import { createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
+import { createRootRoute, createRouter } from "@tanstack/react-router";
 import App from "./App";
-import TaskList from "./pages/TaskList";
 
-const rootRoute = createRootRoute({ component: App });
+import { tasksRoute } from './routes/tasksRoute';
+import { taskListRoute } from './routes/taskListRoute';
+import { taskDetailsRoute } from './routes/taskDetailsRoute';
 
-const taskListRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/",
-  component: TaskList,
+export const rootRoute = createRootRoute({
+  component: App,
 });
 
-const routeTree = rootRoute.addChildren([taskListRoute]);
+const routeTree = rootRoute.addChildren([
+  tasksRoute.addChildren([
+    taskListRoute,
+    taskDetailsRoute
+  ])
+]);
 
 export const router = createRouter({ routeTree });
+

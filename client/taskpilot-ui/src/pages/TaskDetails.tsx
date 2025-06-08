@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "@tanstack/react-router";
+import { Link,useParams } from "@tanstack/react-router";
 import axios from "axios";
 import type { Task } from "../types/task";
 
@@ -25,6 +25,7 @@ export default function TaskDetails() {
       <p><strong>Start:</strong> {new Date(task.startDateTime).toLocaleString()}</p>
       <p><strong>End:</strong> {new Date(task.endDateTime).toLocaleString()}</p>
       <p><strong>Created By:</strong> {task.createdBy}</p>
+      <Link to="/tasks">⬅ Back to Task List</Link>
     </div>
   );
 }

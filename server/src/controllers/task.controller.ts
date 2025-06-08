@@ -13,7 +13,8 @@ export const createTask = async(req:Request, res:Response) => {
         await task.save();
         res.status(200).json(task)
     }catch(err:any){
-        res.status(500).json({error:`Failed to create task:${err.message}`})
+        console.error("Mongoose error:", err);
+        res.status(500).json({ error: `Failed to create task: ${err.message}` });
     }
 };
 

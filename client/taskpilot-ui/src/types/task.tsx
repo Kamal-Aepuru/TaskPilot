@@ -1,8 +1,11 @@
 export interface Task {
   _id: string;
-  title: string;
-  description: string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
+  name: string; 
+  description?: string;
+  startDateTime: string;
+  endDateTime: string;
+  category?: string;
+  createdBy: string;
+  createdAt?: string;
+  updatedAt?: string;
 }

@@ -5,6 +5,7 @@ import type { Task } from "../types/task";
 
 export default function TaskDetails() {
   const { taskId } = useParams({ from: "/tasks/$taskId" });
+  console.log("Task ID from URL:", taskId)
 
   const { data: task, isLoading, isError } = useQuery<Task>({
     queryKey: ["task", taskId],

@@ -1,16 +1,17 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { z } from "zod";
+import { TaskSchema } from "../schemas/taskSchema"; // <-- Adjust path if needed
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTasks } from "../api/useTasks";
 import { useCategories } from "../api/useCategories";
 import { useDeleteTask } from "../api/useDelete";
 import { useUpdateTask } from "../api/useUpdateTask";
 import type { Task } from "../types/task";
-import { Link } from '@tanstack/react-router';
+import { Link } from "@tanstack/react-router";
 
 export default function TaskList() {
   const queryClient = useQueryClient();
-
   const { data: tasks, isLoading, isError } = useTasks();
   const { data: categories } = useCategories();
   const deleteTaskMutation = useDeleteTask();
@@ -26,11 +27,33 @@ export default function TaskList() {
     createdBy: "",
   });
 
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const validateForm = () => {
+    const result = TaskSchema.safeParse({
+      ...form,
+      startDateTime: new Date(form.startDateTime),
+      endDateTime: new Date(form.endDateTime),
+    });
+
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      for (const [key, val] of Object.entries(result.error.flatten().fieldErrors)) {
+        if (val) errors[key] = val[0];
+      }
+      setFormErrors(errors);
+      return false;
+    }
+
+    setFormErrors({});
+    return true;
   };
 
   const addTaskMutation = useMutation({
@@ -58,16 +81,7 @@ export default function TaskList() {
 
   const handleAddOrUpdateTask = (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (
-      !form.name ||
-      !form.startDateTime ||
-      !form.endDateTime ||
-      !form.createdBy
-    ) {
-      alert("Please fill all required fields.");
-      return;
-    }
+    if (!validateForm()) return;
 
     if (editingTaskId) {
       updateTaskMutation.mutate(
@@ -106,6 +120,7 @@ export default function TaskList() {
       createdBy: "",
     });
     setEditingTaskId(null);
+    setFormErrors({});
   };
 
   return (
@@ -118,30 +133,45 @@ export default function TaskList() {
           value={form.name}
           onChange={handleChange}
         />
+        {formErrors.name && <p style={{ color: "red" }}>{formErrors.name}</p>}
+
         <input
           name="description"
           placeholder="Description"
           value={form.description}
           onChange={handleChange}
         />
+
         <input
           name="startDateTime"
           type="datetime-local"
           value={form.startDateTime}
           onChange={handleChange}
         />
+        {formErrors.startDateTime && (
+          <p style={{ color: "red" }}>{formErrors.startDateTime}</p>
+        )}
+
         <input
           name="endDateTime"
           type="datetime-local"
           value={form.endDateTime}
           onChange={handleChange}
         />
+        {formErrors.endDateTime && (
+          <p style={{ color: "red" }}>{formErrors.endDateTime}</p>
+        )}
+
         <input
           name="createdBy"
           placeholder="Created By"
           value={form.createdBy}
           onChange={handleChange}
         />
+        {formErrors.createdBy && (
+          <p style={{ color: "red" }}>{formErrors.createdBy}</p>
+        )}
+
         <select name="category" value={form.category} onChange={handleChange}>
           <option value="">Select Category</option>
           {categories?.map((cat: any) => (
@@ -150,6 +180,7 @@ export default function TaskList() {
             </option>
           ))}
         </select>
+
         <button type="submit">
           {editingTaskId
             ? updateTaskMutation.isPending
@@ -172,7 +203,8 @@ export default function TaskList() {
               <strong>{task.name}</strong>
             </Link>
             <br />
-            {task.description || "No description"}<br />
+            {task.description || "No description"}
+            <br />
             Start: {new Date(task.startDateTime).toLocaleString()}
             <br />
             End: {new Date(task.endDateTime).toLocaleString()}
